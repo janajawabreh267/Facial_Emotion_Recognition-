@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EmotiScan — Facial Expression Detector</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --border: #2a2a3d;
+    --accent: #7c5cfc;
+    --accent2: #fc5c7d;
+    --text: #e8e8f0;
+    --muted: #7070a0;
+    --success: #5cfcb0;
+    --card: #16162a;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px 80px;
+    overflow-x: hidden;
+  }
+
+  /* Ambient background blobs */
+  body::before, body::after {
+    content: '';
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.12;
+    pointer-events: none;
+    z-index: 0;
+  }
+  body::before {
+    width: 600px; height: 600px;
+    background: var(--accent);
+    top: -200px; left: -200px;
+  }
+  body::after {
+    width: 500px; height: 500px;
+    background: var(--accent2);
+    bottom: -150px; right: -150px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 52px;
+    position: relative; z-index: 1;
+  }
+  .logo-tag {
+    display: inline-block;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    background: rgba(124,92,252,0.12);
+    border: 1px solid rgba(124,92,252,0.3);
+    padding: 4px 14px;
+    border-radius: 20px;
+    margin-bottom: 18px;
+  }
+  h1 {
+    font-size: clamp(2.2rem, 6vw, 3.6rem);
+    font-weight: 800;
+    line-height: 1.1;
+    background: linear-gradient(135deg, #fff 30%, var(--accent) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  header p {
+    margin-top: 12px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+  }
+
+  /* ── Main card ── */
+  .main-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 40px;
+    width: 100%;
+    max-width: 640px;
+    position: relative;
+    z-index: 1;
+    box-shadow: 0 40px 80px rgba(0,0,0,0.5);
+  }
+
+  /* Drop zone */
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: 16px;
+    padding: 52px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+    background: rgba(255,255,255,0.02);
+  }
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(124,92,252,0.06);
+  }
+  .drop-zone input { display: none; }
+
+  .drop-icon {
+    font-size: 52px;
+    margin-bottom: 14px;
+    display: block;
+    transition: transform 0.3s;
+  }
+  .drop-zone:hover .drop-icon { transform: scale(1.15) rotate(-4deg); }
+
+  .drop-zone .drop-label {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .drop-zone .drop-sub {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+
+  /* Preview */
+  .preview-wrap {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 24px 0 8px;
+  }
+  .preview-wrap.show { display: flex; }
+  #preview-img {
+    max-height: 240px;
+    max-width: 100%;
+    border-radius: 12px;
+    border: 2px solid var(--border);
+    object-fit: cover;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+  .preview-filename {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .btn-change {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    background: none;
+    border: 1px solid rgba(124,92,252,0.3);
+    border-radius: 20px;
+    padding: 5px 14px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-change:hover { background: rgba(124,92,252,0.12); }
+
+  /* Predict button */
+  #predict-btn {
+    width: 100%;
+    margin-top: 24px;
+    padding: 18px;
+    border-radius: 14px;
+    border: none;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff;
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+  #predict-btn:hover { opacity: 0.92; transform: translateY(-1px); }
+  #predict-btn:active { transform: translateY(0); }
+  #predict-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  #predict-btn .btn-shine {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.18) 50%, transparent 100%);
+    transform: translateX(-100%);
+    transition: transform 0.5s;
+  }
+  #predict-btn:hover .btn-shine { transform: translateX(100%); }
+
+  /* Spinner */
+  .spinner {
+    display: none;
+    width: 22px; height: 22px;
+    border: 3px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin: 0 auto;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Results ── */
+  #results {
+    display: none;
+    margin-top: 32px;
+    animation: fadeUp 0.4s ease;
+  }
+  #results.show { display: block; }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .result-hero {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px 24px;
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .result-emoji { font-size: 64px; display: block; margin-bottom: 10px; }
+  .result-label {
+    font-size: 28px;
+    font-weight: 800;
+    text-transform: capitalize;
+    background: linear-gradient(135deg, #fff, var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .result-conf {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    color: var(--success);
+    margin-top: 6px;
+  }
+
+  .bars-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+
+  .bar-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .bar-emoji { font-size: 18px; width: 26px; text-align: center; flex-shrink: 0; }
+  .bar-name {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    width: 64px;
+    color: var(--muted);
+    text-transform: capitalize;
+    flex-shrink: 0;
+  }
+  .bar-track {
+    flex: 1;
+    height: 8px;
+    background: var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 8px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    width: 0%;
+  }
+  .bar-fill.top { background: linear-gradient(90deg, var(--accent2), #ffc947); }
+  .bar-pct {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--text);
+    width: 42px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  /* Error */
+  .error-box {
+    background: rgba(252,92,125,0.1);
+    border: 1px solid rgba(252,92,125,0.3);
+    border-radius: 12px;
+    padding: 16px 20px;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--accent2);
+    margin-top: 20px;
+    display: none;
+  }
+  .error-box.show { display: block; }
+
+  /* model info badge */
+  .model-info {
+    margin-top: 28px;
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .badge {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .badge span { color: var(--text); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-tag">MobileNetV2 · PyTorch · FER2013</div>
+  <h1>EmotiScan</h1>
+  <p>// Upload a face photo — get instant emotion prediction</p>
+</header>
+
+<div class="main-card">
+
+  <!-- Drop Zone -->
+  <div class="drop-zone" id="drop-zone">
+    <input type="file" id="file-input" accept="image/*">
+    <span class="drop-icon">🖼️</span>
+    <div class="drop-label">Drop your photo here</div>
+    <div class="drop-sub">or click to browse &nbsp;·&nbsp; JPG, PNG, WEBP</div>
+  </div>
+
+  <!-- Preview -->
+  <div class="preview-wrap" id="preview-wrap">
+    <img id="preview-img" src="" alt="Preview">
+    <div class="preview-filename" id="preview-name"></div>
+    <button class="btn-change" id="change-btn">↩ Change photo</button>
+  </div>
+
+  <!-- Predict button -->
+  <button id="predict-btn" disabled>
+    <span class="btn-shine"></span>
+    <span id="btn-text">PREDICT EMOTION</span>
+    <div class="spinner" id="spinner"></div>
+  </button>
+
+  <!-- Error -->
+  <div class="error-box" id="error-box"></div>
+
+  <!-- Results -->
+  <div id="results">
+    <div class="result-hero">
+      <span class="result-emoji" id="res-emoji"></span>
+      <div class="result-label" id="res-label"></div>
+      <div class="result-conf" id="res-conf"></div>
+    </div>
+
+    <div class="bars-title">ALL EMOTIONS</div>
+    <div id="bars-container"></div>
+  </div>
+
+  <!-- Model badges -->
+  <div class="model-info">
+    <div class="badge">Model: <span>MobileNetV2</span></div>
+    <div class="badge">Classes: <span>7 emotions</span></div>
+    <div class="badge">Val Acc: <span>67.44%</span></div>
+    <div class="badge">Input: <span>96×96 px</span></div>
+  </div>
+</div>
+
+<script>
+const dropZone   = document.getElementById('drop-zone');
+const fileInput  = document.getElementById('file-input');
+const previewWrap= document.getElementById('preview-wrap');
+const previewImg = document.getElementById('preview-img');
+const previewName= document.getElementById('preview-name');
+const changeBtn  = document.getElementById('change-btn');
+const predictBtn = document.getElementById('predict-btn');
+const btnText    = document.getElementById('btn-text');
+const spinner    = document.getElementById('spinner');
+const errorBox   = document.getElementById('error-box');
+const results    = document.getElementById('results');
+
+let selectedFile = null;
+
+// ── File selection helpers ──────────────────────────────────────────────────
+function showPreview(file) {
+  selectedFile = file;
+  const url = URL.createObjectURL(file);
+  previewImg.src = url;
+  previewName.textContent = file.name;
+  dropZone.style.display = 'none';
+  previewWrap.classList.add('show');
+  predictBtn.disabled = false;
+  results.classList.remove('show');
+  errorBox.classList.remove('show');
+}
+
+function resetToUpload() {
+  selectedFile = null;
+  previewWrap.classList.remove('show');
+  dropZone.style.display = '';
+  predictBtn.disabled = true;
+  results.classList.remove('show');
+  errorBox.classList.remove('show');
+  fileInput.value = '';
+}
+
+dropZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) showPreview(fileInput.files[0]);
+});
+changeBtn.addEventListener('click', resetToUpload);
+
+// Drag & drop
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) showPreview(e.dataTransfer.files[0]);
+});
+
+// ── Predict ─────────────────────────────────────────────────────────────────
+predictBtn.addEventListener('click', async () => {
+  if (!selectedFile) return;
+
+  // Loading state
+  btnText.style.display = 'none';
+  spinner.style.display = 'block';
+  predictBtn.disabled = true;
+  errorBox.classList.remove('show');
+  results.classList.remove('show');
+
+  const fd = new FormData();
+  fd.append('file', selectedFile);
+
+  try {
+    const resp = await fetch('/predict', { method: 'POST', body: fd });
+    const data = await resp.json();
+
+    if (data.error) throw new Error(data.error);
+
+    // Fill hero
+    document.getElementById('res-emoji').textContent = data.emoji;
+    document.getElementById('res-label').textContent = data.prediction;
+    document.getElementById('res-conf').textContent  = `Confidence: ${data.confidence}%`;
+
+    // Build bars
+    const container = document.getElementById('bars-container');
+    container.innerHTML = '';
+    data.all_probs.forEach((item, i) => {
+      const isTop = i === 0;
+      const row = document.createElement('div');
+      row.className = 'bar-row';
+      row.innerHTML = `
+        <span class="bar-emoji">${item.emoji}</span>
+        <span class="bar-name">${item.emotion}</span>
+        <div class="bar-track">
+          <div class="bar-fill ${isTop ? 'top' : ''}" data-pct="${item.prob}"></div>
+        </div>
+        <span class="bar-pct">${item.prob}%</span>
+      `;
+      container.appendChild(row);
+    });
+
+    results.classList.add('show');
+
+    // Animate bars after paint
+    requestAnimationFrame(() => {
+      document.querySelectorAll('.bar-fill').forEach(el => {
+        el.style.width = el.dataset.pct + '%';
+      });
+    });
+
+  } catch (err) {
+    errorBox.textContent = '⚠ ' + err.message;
+    errorBox.classList.add('show');
+  } finally {
+    btnText.style.display = '';
+    spinner.style.display = 'none';
+    predictBtn.disabled = false;
+  }
+});
+</script>
+
+</body>
+</html>

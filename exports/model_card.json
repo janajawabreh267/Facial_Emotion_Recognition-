@@ -1,0 +1,33 @@
+{
+  "model": "FERModel EfficientNet-B2+CBAM",
+  "task": "FER 7-class",
+  "test_accuracy": 0.6395,
+  "test_macro_f1": 0.6214,
+  "ece_raw": 0.1049,
+  "ece_calibrated": 0.061,
+  "temperature": 0.8779,
+  "per_class_f1": {
+    "angry": 0.5668,
+    "disgust": 0.7154,
+    "fear": 0.4525,
+    "happy": 0.8497,
+    "neutral": 0.6139,
+    "sad": 0.4706,
+    "surprise": 0.7659
+  },
+  "params_total": "8.8M",
+  "params_trainable": "8.2M",
+  "throughput_a100": "~3400 imgs/s batch=64",
+  "exports": {
+    "torchscript": "exports/fer_model_torchscript.pt",
+    "onnx": "exports/fer_model.onnx",
+    "checkpoint": "checkpoints/calibrated_model.pt"
+  },
+  "limitations": [
+    "fear F1=0.45: mouth-cue only, misses widened-eye",
+    "sad F1=0.47: low-intensity sad near-neutral",
+    "angry over-prediction: catch-all for negative valence",
+    "FER2013 ~20% inter-annotator noise",
+    "no temporal context"
+  ]
+}

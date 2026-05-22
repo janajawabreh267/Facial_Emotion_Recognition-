@@ -1,0 +1,63 @@
+==============================================================
+  PHASE 1 — EDA REPORT
+==============================================================
+
+── Class counts ─────────────────────────────────────────────
+
+  TRAIN split:
+    angry          3,396   ( 13.9%)
+    disgust          371   (  1.5%)
+    fear           3,483   ( 14.3%)
+    happy          6,133   ( 25.1%)
+    neutral        4,221   ( 17.3%)
+    sad            4,106   ( 16.8%)
+    surprise       2,696   ( 11.0%)
+    TOTAL         24,406
+    Majority  : happy  (6,133)
+    Minority  : disgust  (371)
+    Global IR : 16.53x
+
+  VAL split:
+    angry            599   ( 13.9%)
+    disgust           65   (  1.5%)
+    fear             614   ( 14.3%)
+    happy          1,082   ( 25.1%)
+    neutral          744   ( 17.3%)
+    sad              724   ( 16.8%)
+    surprise         475   ( 11.0%)
+    TOTAL          4,303
+    Majority  : happy  (1,082)
+    Minority  : disgust  (65)
+    Global IR : 16.65x
+
+  TEST split:
+    angry            958   ( 13.3%)
+    disgust          111   (  1.5%)
+    fear           1,024   ( 14.3%)
+    happy          1,774   ( 24.7%)
+    neutral        1,233   ( 17.2%)
+    sad            1,247   ( 17.4%)
+    surprise         831   ( 11.6%)
+    TOTAL          7,178
+    Majority  : happy  (1,774)
+    Minority  : disgust  (111)
+    Global IR : 15.98x
+
+── Normalization constants (for Phase 2) ─────────────────────
+    DATASET_MEAN = [0.5050, 0.5050, 0.5050]
+    DATASET_STD  = [0.2109,  0.2109,  0.2109]
+
+── Image size summary ────────────────────────────────────────
+    Height : min=48  max=48  mean=48.0
+    Width  : min=48  max=48  mean=48.0
+    Unique (H, W) pairs : 1
+
+── Phase 2 checklist ─────────────────────────────────────────
+    [ ] FERDataset class with __len__ and __getitem__
+    [ ] WeightedRandomSampler weights from train counts
+    [ ] Augmentation pipeline (flip, jitter, erasing, MixUp)
+    [ ] transforms.Normalize with values above
+    [ ] DataLoaders: train / val / test
+    [ ] class_weights tensor for CrossEntropyLoss
+
+==============================================================
